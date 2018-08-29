@@ -17,9 +17,9 @@ Python 3.6.5
 
 2. activate virutalenv & source
 
-`cd [project_path]`
-`virtualenv .venv`
-`source .venv/bin/activate/ --python=python3`
+`cd [project_path]`  
+`virtualenv .venv`  
+`source .venv/bin/activate/ --python=python3`  
 
 3. Install packages
 `pip install -r requirements.txt`
