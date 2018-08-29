@@ -1,10 +1,8 @@
 # coding: utf-8
 
 # # QQ Music Crawlers
-import requests
 import json
 import csv
-from pymongo import MongoClient
 import urllib
 import datetime
 import time
@@ -12,12 +10,8 @@ from pprint import pprint
 from bson import ObjectId
 import traceback
 
-
-def req(targetUrl, headers = {}):
-    resp = requests.get(targetUrl,  headers=headers)
-    
-    return resp
-
+from request import req
+from db import db, insert, COLLECTION_NAME
 ### Convert output
 
 def adapt_output(diss):
@@ -25,9 +19,10 @@ def adapt_output(diss):
     d['createtime'] = datetime.datetime.strptime(diss['createtime'], '%Y-%m-%d')
     d['commit_time'] = datetime.datetime.strptime(diss['createtime'], '%Y-%m-%d')
     d['download_time'] = datetime.datetime.now()
+    d['status_code'] = 1 
     return d
 
-
+""" Read the categories into a list"""
 cids = []
 with open('categories.txt', 'r') as f:
     reader = csv.reader(f)
@@ -35,33 +30,25 @@ with open('categories.txt', 'r') as f:
         cids.append(r[0])   
 
 
-client = MongoClient('localhost', 27017) # Configure relavent client here
-db = client.music
-
-def insert(doc):
-    db.qq_music_collection.insert_one(doc)
-
-
 """Construct Data API URLs"""
 
 COLLECTION_API_URL = 'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg'
 PAGE_SIZE = 29
 
+print("Start crawling")
+
 for cid in cids:
-    
+
     exit = False
     sortId = 5
     start = 0
     retry = 0
-    
+
+    print("Getting category_id = {}".format(cid))
     while True:
         new_diss = []
 
-        headers= {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36',
-            'Referer': 'https://y.qq.com/portal/playlist.html',
-        }
-
+        # Construct url params
         params = {
             'inCharset': 'utf8',
             'outCharset': 'utf-8',
@@ -71,11 +58,10 @@ for cid in cids:
             'ein': start + PAGE_SIZE,
             'format': 'json',
         }
-
         url = '{}?{}'.format(COLLECTION_API_URL, urllib.parse.urlencode(params))
-        
+
         try:
-            collections = req(url, headers=headers).json()
+            collections = req(url).json()
             if not collections['data']['list']:
                 break
             for d in collections['data']['list']:
@@ -88,17 +74,18 @@ for cid in cids:
         except:
             print(url)
             traceback.print_exc()
-            
+
+            # If failed tried three times and failed, pass to the next one
             retry += 1
             if retry > 3:
                 break
             else:
                 print('Retried')
                 pass
-        
+
         start += 30
         time.sleep(0.2)
-    
+
     if exit:
         break
 
